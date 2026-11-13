@@ -2,7 +2,14 @@
 import csv
 from pathlib import Path
 
-TICKS = {"MNQ": 0.25, "MGC": 0.10}
+TICKS = {
+    "MNQ": 0.25,
+    "MGC": 0.10,
+    "MCL": 0.01,
+    "MES": 0.25,
+    "MYM": 1.00,
+    "M2K": 0.10
+}
 
 def scan(symbol):
     path = Path(f"{symbol}.csv")
@@ -67,7 +74,7 @@ def scan(symbol):
     print(f"Stop loss: {stop:.2f}")
     print(f"Take profit: {target:.2f}")
     print("Reward/risk: 2:1")
-    print("PAPER TRADING ONLY")
+        print("PAPER TRADING ONLY")
 
-for market in ("MNQ", "MGC"):
+for market in ("MNQ", "MGC", "MCL", "MES", "MYM", "M2K"):
     scan(market)
