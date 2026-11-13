@@ -5,9 +5,19 @@ from pathlib import Path
 import yfinance as yf
 
 MARKETS = {
-    "MNQ": "MNQ=F",
-    "MGC": "MGC=F"
+    symbol: f"{symbol}=F"
+    for symbol in """
+        MNQ MES MYM M2K NQ ES YM RTY EMD MNK
+        MCL QM MNG QG
+        MGC QO SIL MHG
+        M6E M6B MCD M6A E7
+        MZS MZW MZC MZL MZM
+        MBT MET MSL MXP MXL MCA MLN MAV MSU
+        MTN MWN 10Y
+    """.split()
 }
+
+
 
 def fetch_data(symbol, ticker):
     print(f"Downloading {symbol} candles...")
