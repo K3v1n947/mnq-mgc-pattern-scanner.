@@ -10,6 +10,7 @@ Candles and prices may be delayed. A pattern is a *pending* breakout, not an ord
 import csv
 import math
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from decimal import Decimal, ROUND_CEILING, ROUND_FLOOR
 from pathlib import Path
 
@@ -42,6 +43,25 @@ TICKS = {
 PRIORITY = {"MNQ": 0.5, "MGC": 0.5, "MCL": 0.3}
 MAX_SETUPS = 3
 MAX_AGE_HOURS = 4  # Avoid presenting stale historical candles as current setups.
+CENTRAL = ZoneInfo("America/Chicago")
+
+
+def typical_weekend_pause(now):
+    """Typical US futures weekend shutdown; do not issue signals during closure.
+
+    This is a conservative gate, not an exchange calendar. Individual products,
+    holidays, and exceptional sessions may have different opening times.
+    During active sessions, the separate 4-hour freshness check still applies.
+    """
+    local = now.astimezone(CENTRAL)
+    day = local.weekday()  # Monday=0, Sunday=6
+    if day == 5:  # Saturday
+        return True
+    if day == 6 and local.hour < 17:  # Sunday before typical 5 PM CT reopen
+        return True
+    if day == 4 and local.hour >= 17:  # Friday after typical futures close
+        return True
+    return False
 
 
 def read_candles(symbol):
@@ -94,6 +114,9 @@ def analyze(symbol, candles, now):
     age_hours = (now - current["timestamp"]).total_seconds() / 3600
     if age_hours < -0.5:
         return None, "BAD TIMESTAMP: candle is in the future"
+    if typical_weekend_pause(now):
+        return None, (f"WEEKEND PAUSE: last candle {current['timestamp'].isoformat()}; "
+                      "no actionable signals during typical futures weekend closure")
     if age_hours > MAX_AGE_HOURS:
         return None, (f"STALE DATA: last candle {current['timestamp'].isoformat()} "
                       f"({age_hours:.1f}h old)")
@@ -187,12 +210,23 @@ def main():
     print("EXPANDED FUTURES PATTERN SCANNER — PAPER TRADING ONLY")
     print(f"Run time (UTC): {now.isoformat(timespec='seconds')}")
     print("Source: downloaded 15-minute Yahoo Finance futures CSVs (may be delayed).")
-    print(f"Markets checked: {len(symbol_order)}; usable CSVs: {valid_count}")
+    local_now = now.astimezone(CENTRAL)
+    print(f"Central time: {local_now.isoformat(timespec='seconds')}")
+    if typical_weekend_pause(now):
+        print("Session status: WEEKEND PAUSE (typical US futures schedule).")
+        print("Friday candles are retained for analysis, but no new setup is actionable.")
+    else:
+        print("Session status: ACTIVE/OTHER; checking each candle's 4-hour freshness.")
+        print("Note: holidays and individual exchange hours are not checked.")
+    print(f"Markets checked: {len(symbol_order)}; valid CSVs: {valid_count}")
     print(f"Qualified setups: {len(qualified)}; shown: {len(chosen)}; "
           f"patterns awaiting tick verification: {len(awaiting_tick_check)}")
     print("\n=== TOP PAPER-TRADING SETUPS (MAX 3) ===")
     if not chosen:
-        print("No qualifying, fresh setups with verified ticks. DO NOT force a trade.")
+        if typical_weekend_pause(now):
+            print("Weekend pause: no actionable setups. Re-check after the session reopens.")
+        else:
+            print("No qualifying, fresh setups with verified ticks. DO NOT force a trade.")
     for rank, setup in enumerate(chosen, 1):
         entry, stop, target = setup["levels"]
         print(f"\n{rank}. {setup['symbol']} — {setup['direction']} PENDING BREAKOUT")
