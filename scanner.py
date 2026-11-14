@@ -74,7 +74,7 @@ def scan(symbol):
     print(f"Stop loss: {stop:.2f}")
     print(f"Take profit: {target:.2f}")
     print("Reward/risk: 2:1")
-        print("PAPER TRADING ONLY")
+    print("PAPER TRADING ONLY")
 
 for market in ("MNQ", "MGC", "MCL", "MES", "MYM", "M2K"):
     scan(market)
